@@ -32,6 +32,7 @@ resources:
       timeout_seconds: 3600
       tasks:
         - task_key: synthetic_demo
+          max_retries: 1
           spark_python_task:
             python_file: ./src/construction_data_platform/databricks_entry.py
             parameters:
@@ -41,7 +42,7 @@ resources:
       environments:
         - environment_key: default
           spec:
-            environment_version: "2"
+            environment_version: "6"
             dependencies: []
 
 targets:

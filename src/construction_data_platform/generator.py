@@ -40,10 +40,11 @@ def generate(root: Path, scenario: str = "golden", seed: int = SEED) -> dict[str
     root = root.resolve()
     landing = root / "landing"
     expected = root / "expected"  # Never consumed by the pipeline.
-    for folder in (landing, expected):
+    deferred = root / "deferred"  # Future source arrivals; never read by the pipeline.
+    for folder in (landing, expected, deferred):
         folder.mkdir(parents=True, exist_ok=True)
-    for old in landing.glob("*.csv"):
-        old.unlink()
+        for old in folder.glob("*.csv"):
+            old.unlink()
 
     po_time = "2026-10-19T12:00:00Z"
     delivery_time = "2026-10-20T14:30:00Z"
@@ -56,8 +57,14 @@ def generate(root: Path, scenario: str = "golden", seed: int = SEED) -> dict[str
 
     feeds = {"purchase_order_lines": po, "scale_tickets": tickets, "site_receipts": receipts, "invoices": invoices, "invoice_lines": invoice_lines, "invoice_delivery_allocations": allocations}
     files = []
+    deferred_files = []
     for name, rows in feeds.items():
-        files.append(_write_csv(landing / f"{name}_batch_001.csv", rows))
+        if (scenario == "late-receipt" and name == "site_receipts") or (
+            scenario == "late-po" and name == "purchase_order_lines"
+        ):
+            deferred_files.append(_write_csv(deferred / f"{name}_late_arrival.csv", rows))
+        else:
+            files.append(_write_csv(landing / f"{name}_batch_001.csv", rows))
 
     if scenario in {"ticket-correction", "late-reference"}:
         revision = dict(tickets[0], source_revision="2", source_record_id="SCALE-A:T-9001", source_updated_at="2026-10-21T08:00:00Z", gross_weight="11.000", tare_weight="2.000", weighed_at="2026-10-20T14:30:00Z")
@@ -70,7 +77,12 @@ def generate(root: Path, scenario: str = "golden", seed: int = SEED) -> dict[str
         _write_csv(landing / "scale_tickets_invalid.csv", [bad])
 
     now = datetime.now(UTC).isoformat()
-    manifest = {"synthetic": True, "project": "construction-data-platform", "description": "A Databricks data platform that connects construction purchasing, deliveries, and invoices to produce reliable reporting and identify discrepancies.", "scenario": scenario, "seed": seed, "contract_version": SCHEMA_VERSION, "generated_at_utc": now, "arrival_schedule": {"initial_feeds": "available at run start", "correction": "included only in correction scenarios"}, "files": files}
+    arrivals = {"initial_feeds": "available at run start", "correction": "included only in correction scenarios"}
+    if scenario == "late-receipt":
+        arrivals["site_receipts"] = "deferred/site_receipts_late_arrival.csv; deliver after the first run"
+    if scenario == "late-po":
+        arrivals["purchase_order_lines"] = "deferred/purchase_order_lines_late_arrival.csv; deliver after the first run"
+    manifest = {"synthetic": True, "project": "construction-data-platform", "description": "A Databricks data platform that connects construction purchasing, deliveries, and invoices to produce reliable reporting and identify discrepancies.", "scenario": scenario, "seed": seed, "contract_version": SCHEMA_VERSION, "generated_at_utc": now, "arrival_schedule": arrivals, "files": files, "deferred_files": deferred_files}
     (expected / "scenario_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     oracle_path = Path(__file__).resolve().parents[2] / "fixtures" / "golden_oracle.json"
     (expected / "golden_oracle.json").write_text(oracle_path.read_text(encoding="utf-8"), encoding="utf-8")

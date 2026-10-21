@@ -1,10 +1,11 @@
 {
-  "run_id": "004324b2-e245-418b-b971-91edfc2199fa",
-  "generation": "20261021T195928820110Z-004324b2",
+  "run_id": "e3383a09-e261-419f-8bdf-48a71851b820",
+  "generation": "20261021T210905582844Z-e3383a09",
   "status": "SUCCESS",
+  "published": true,
   "synthetic": true,
-  "started_at_utc": "2026-10-21T19:58:43.782965+00:00",
-  "finished_at_utc": "2026-10-21T19:59:32.871403+00:00",
+  "started_at_utc": "2026-10-21T21:08:22.120453+00:00",
+  "finished_at_utc": "2026-10-21T21:09:10.570159+00:00",
   "source_rows_by_feed": {
     "purchase_order_lines": 1,
     "scale_tickets": 1,

@@ -3,6 +3,7 @@ export JAVA_HOME
 export PATH := $(JAVA_HOME)/bin:$(PATH)
 export SPARK_LOCAL_IP := 127.0.0.1
 export HOME := $(CURDIR)/.home
+export PYSPARK_SUBMIT_ARGS ?= --driver-memory 4g pyspark-shell
 
 .PHONY: install demo test lint
 install:

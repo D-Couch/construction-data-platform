@@ -10,7 +10,7 @@ All values are synthetic. Source records retain a common envelope (`source_syste
 | silver/quarantine | rejected source record | reason code and source provenance | Delta |
 | silver/delivery_status | current ticket + receipt + PO line | current state and accepted tonnes | Delta |
 | gold/daily_delivered_quantities | project, material, project-local receipt date | accepted net metric tonnes | Delta, generation scoped |
-| gold/invoice_exceptions | invoice line | allocation/receipt quantity difference or amount/reference reason | Delta, generation scoped |
+| gold/invoice_exceptions | invoice line | allocation/receipt quantity, billed amount, PO price, currency or reference discrepancy | Delta, generation scoped |
 | gold/current_generation.json | one pointer | shared generation ID and publish time | atomic local file replace |
 
-Weights retain original source values and units. Accepted delivery reporting uses decimal metric tonnes (1,000 kg; US short ton is 907.18474 kg). Money is USD decimal and line amount validation rounds half-up to cents via Spark `round` for positive initial invoice values. Quantity tolerance is max(0.01 tonne, 0.5% of allocated accepted quantity). These are demo rules, not contractor policy.
+Weights retain original source values and units. Accepted delivery reporting and invoice allocation reconciliation use decimal metric tonnes (1,000 kg; US short ton is 907.18474 kg). Money is USD decimal and line amount validation rounds half-up to cents via Spark `round`. Invoice unit prices are normalized to USD per metric tonne and compared with the PO revision effective at ticket weigh time, with a USD 0.01 per tonne tolerance. Quantity tolerance is max(0.01 tonne, 0.5% of allocated accepted quantity). These are demo rules, not contractor policy.

@@ -22,10 +22,12 @@ Other commands:
 ```bash
 .venv/bin/python -m construction_data_platform.cli generate --root data/correction --scenario ticket-correction
 .venv/bin/python -m construction_data_platform.cli run --root data/correction
+.venv/bin/python -m construction_data_platform.cli generate --root data/late-receipt --scenario late-receipt
+.venv/bin/python -m construction_data_platform.cli run --root data/late-receipt
+mv data/late-receipt/deferred/site_receipts_late_arrival.csv data/late-receipt/landing/
+.venv/bin/python -m construction_data_platform.cli run --root data/late-receipt
 .venv/bin/pytest
 .venv/bin/ruff check src tests
 ```
 
 See [docs/STATUS.md](docs/STATUS.md) for exact environment setup, executed checks, outcomes and limitations.
-
-This workspace exposes the original empty `.git` directory as read-only. Use `scripts/git-project.sh` for Git commands here; it keeps repository metadata in the ignored `.git-data/` directory.
