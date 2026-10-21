@@ -1,0 +1,13 @@
+.venv/
+.tools/
+.cache/
+.home/
+data/
+evidence/runs/*.json
+*.egg-info/
+dist/
+build/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.git-data/

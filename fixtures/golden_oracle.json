@@ -1,0 +1,18 @@
+{
+  "fixture_version": "golden-1",
+  "synthetic": true,
+  "case": "clean accepted delivery and exact invoice",
+  "expected": {
+    "accepted_metric_tonnes_by_project_material_date": [
+      {
+        "project_id": "P-001",
+        "material_id": "AGG-1",
+        "business_date": "2026-10-20",
+        "accepted_net_quantity": "10.000"
+      }
+    ],
+    "invoice_exception_count": 0,
+    "invoice_line_amount_usd": "125.00",
+    "quarantine_count": 0
+  }
+}

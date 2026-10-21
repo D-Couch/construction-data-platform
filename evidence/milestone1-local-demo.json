@@ -1,0 +1,32 @@
+{
+  "run_id": "004324b2-e245-418b-b971-91edfc2199fa",
+  "generation": "20261021T195928820110Z-004324b2",
+  "status": "SUCCESS",
+  "synthetic": true,
+  "started_at_utc": "2026-10-21T19:58:43.782965+00:00",
+  "finished_at_utc": "2026-10-21T19:59:32.871403+00:00",
+  "source_rows_by_feed": {
+    "purchase_order_lines": 1,
+    "scale_tickets": 1,
+    "site_receipts": 1,
+    "invoices": 1,
+    "invoice_lines": 1,
+    "invoice_delivery_allocations": 1
+  },
+  "duplicate_business_envelopes_suppressed": 6,
+  "quarantine_rows": 0,
+  "product_rows": {
+    "daily_delivered_quantities": 1,
+    "invoice_exceptions": 0
+  },
+  "daily_delivered": [
+    {
+      "project_id": "P-001",
+      "material_id": "AGG-1",
+      "business_date": "2026-10-20",
+      "accepted_net_quantity": "10.000000"
+    }
+  ],
+  "invoice_exceptions": [],
+  "publication_pointer": "/var/home/dylan/src/construction-data-platform/data/demo/tables/gold/current_generation.json"
+}

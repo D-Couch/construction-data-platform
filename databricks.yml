@@ -1,0 +1,56 @@
+bundle:
+  name: construction-data-platform
+
+variables:
+  catalog:
+    description: Existing Unity Catalog catalog for isolated development objects
+    default: main
+  schema:
+    description: Project-owned schema in the selected catalog
+    default: construction_data_dev
+
+workspace:
+  # Configure this profile with `databricks auth login --host <workspace-url> --profile construction-data-dev`.
+  profile: construction-data-dev
+resources:
+  schemas:
+    construction_data_schema:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: Synthetic construction purchasing, delivery, and invoice demo schema
+  volumes:
+    construction_data_volume:
+      catalog_name: ${var.catalog}
+      schema_name: ${var.schema}
+      name: construction_data
+      volume_type: MANAGED
+      comment: Synthetic-only input files and bounded local demo artifacts
+  jobs:
+    construction_data_demo:
+      name: construction-data-platform-${bundle.target}
+      max_concurrent_runs: 1
+      timeout_seconds: 3600
+      tasks:
+        - task_key: synthetic_demo
+          spark_python_task:
+            python_file: ./src/construction_data_platform/databricks_entry.py
+            parameters:
+              - --root
+              - /Volumes/${var.catalog}/${var.schema}/construction_data
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"
+            dependencies: []
+
+targets:
+  dev:
+    default: true
+    mode: development
+    variables:
+      schema: construction_data_dev
+  prod:
+    mode: production
+    variables:
+      schema: construction_data_prod

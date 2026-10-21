@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "construction-data-platform"
+version = "0.1.0"
+description = "A Databricks data platform that connects construction purchasing, deliveries, and invoices to produce reliable reporting and identify discrepancies."
+requires-python = ">=3.11"
+dependencies = ["pyspark==4.0.1", "delta-spark==4.0.0", "pyyaml>=6,<7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9", "ruff>=0.14,<1"]
+
+[project.scripts]
+cdp = "construction_data_platform.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

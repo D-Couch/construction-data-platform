@@ -1,0 +1,31 @@
+Help me build and understand construction-data-platform. This is my first experience with Databricks. I have a PhD in Electrical and Computer Engineering and research/programming experience, but no Databricks experience. I want to develop real skills and be able to explain, operate, debug, and extend the finished project myself.
+
+Use this exact project description:
+"A Databricks data platform that connects construction purchasing, deliveries, and invoices to produce reliable reporting and identify discrepancies."
+
+Read the original AGENTS.md, PROJECT_BRIEF.md, docs/SOURCE_CONTRACTS.md, docs/BUSINESS_RULES.md, docs/ACCEPTANCE_TESTS.md, and docs/STATUS.md. Keep their technical requirements and eventual milestones. This prompt changes the learning order and pacing: do not implement Milestone 1 unattended or generate the entire platform before I understand the basics. No additional learning-path document is required.
+
+FIRST TASK — Databricks orientation and one real query:
+1. Inspect the project folder and actual execution environment. Check for configured Databricks access without exposing credentials. My usual desktop is Bazzite Linux with an i9-13900KF, RTX 4090, and 32 GB RAM, but verify the actual host.
+2. Explain the workspace, compute, catalog, schema, and table in plain language using this project as the example. Distinguish data storage from the compute that runs queries.
+3. Check current official Databricks documentation and help me access a suitable workspace, preferably Free Edition if I have no existing workspace. Do not assume I already have an account. For signup, sign-in, or UI steps I must perform, give one concrete action at a time and wait for my response. I enter credentials myself; never ask for passwords or tokens in chat.
+4. Once access is available, show me SQL to create a tiny synthetic deliveries table in an isolated project-owned development schema within an authorized catalog. Help me execute it on Databricks and query a manually checkable total. Explain where the table appears and which compute executed the query. Do not force local Java/Spark installation before this first workspace query.
+5. Give me one small exercise: predict a total after changing a filter or example record, then run the query and compare. Help me locate and inspect the table myself.
+6. Record actual results and blockers in docs/STATUS.md. Stop at this checkpoint for my confirmation before advancing.
+
+SUBSEQUENT WORK — build the full project in understandable increments:
+- Introduce the small purchasing/delivery/receipt/invoice example and follow one record from source to report.
+- Add duplicates, corrections, late records, and reconciliation rules one at a time. Explain why each pipeline behavior is necessary.
+- Develop reusable Spark/Delta transformations, independent expected-result tests, and reproducible local execution.
+- Add verified Databricks ingestion, jobs, incremental processing, and deployment configuration, explaining each new platform feature as it becomes necessary.
+- Add monitoring, governance, backfills, failure recovery, and finally measured optimization and dashboard polish.
+
+At each stage: explain the problem and design choice; implement and run a working increment; inspect actual evidence with me; provide one small hands-on exercise; then pause for confirmation before advancing. Handle routine coding, dependency installation, and debugging independently within that stage. Do not ask me to choose every library or approve each file. If work already exists, preserve it and teach from it rather than rebuilding it.
+
+Keep the original engineering standards: causal source revision ordering, safe reruns, declared table grains, correct units and decimal amounts, quarantine, auditable reconciliation, and recovery from partial failures. Teach terminology when introduced. Keep brief notes explaining important decisions and actual run/test commands so I can reproduce the work and discuss the tradeoffs in an interview.
+
+You may edit project files, install dependencies in an isolated environment, generate synthetic data, run bounded tests, and create local Git commits using an existing configured identity. In an authorized workspace, use only isolated development resources within its free or previously approved budget. Do not create paid infrastructure, change unrelated resources, create/publish a GitHub repository, or push without my instruction. Follow actual environment permission controls.
+
+If workspace access is blocked, explain the precise blocker and help me resolve it. A small local exercise can illustrate a concept but cannot satisfy verified Databricks execution. Never present synthetic data as real company data, local tests as remote platform verification, or this portfolio project as years of enterprise production experience.
+
+Begin with the first task only: orientation, workspace access, and one real query.
