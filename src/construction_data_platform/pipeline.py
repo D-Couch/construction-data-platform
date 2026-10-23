@@ -102,6 +102,7 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
     counts = {}
     duplicates = 0
     raw_frames = {}
+    quarantined = []
     for name in FEEDS:
         raw = _union(ingest[name])
         raw_path = store / "bronze" / name
@@ -127,6 +128,12 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
         w = Window.partitionBy(*keys).orderBy(F.col("source_revision").cast("long").desc(), F.col("source_updated_at").desc(), F.col("payload_hash").asc())
         technical = df.dropDuplicates([*keys, "source_revision", "payload_hash"])
         duplicates += df.count() - technical.count()
+        unsupported_schema = technical.filter(F.col("schema_version") != "1.0")
+        if unsupported_schema.limit(1).count():
+            quarantined.append(unsupported_schema.withColumn("quarantine_reason", F.lit("UNSUPPORTED_SCHEMA_VERSION")).withColumn("feed", F.lit(name)))
+        technical = technical.filter(F.col("schema_version") == "1.0")
+        if not technical.limit(1).count():
+            return None
         conflict = technical.groupBy(*keys, "source_revision").agg(F.countDistinct("payload_hash").alias("n")).filter("n > 1")
         if conflict.limit(1).count():
             raise ValueError(f"Conflicting equal revision in {name}; no deterministic winner is publishable")
@@ -138,7 +145,6 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
 
     po, ticket, receipt = (current(n) for n in ("purchase_order_lines", "scale_tickets", "site_receipts"))
     invoices, lines, allocations = (current(n) for n in ("invoices", "invoice_lines", "invoice_delivery_allocations"))
-    quarantined = []
     if ticket is not None:
         unit_ok = F.col("weight_unit").isin(*CONVERSION_TO_KG)
         gross = F.expr("try_cast(gross_weight AS DECIMAL(18,6))")
@@ -185,6 +191,14 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
             .when(F.col("price_unit").isNull() | ~F.col("price_unit").isin(*CONVERSION_TO_KG), "UNKNOWN_INVOICE_PRICE_UNIT")
             .when(billed_quantity.isNull() | unit_price.isNull() | line_amount.isNull(), "INVALID_INVOICE_AMOUNT_OR_QUANTITY")
             .when((billed_quantity < 0) | (unit_price < 0) | (line_amount < 0), "NEGATIVE_INVOICE_AMOUNT_OR_QUANTITY"),
+        )
+        lines = lines.withColumn(
+            "quarantine_reason",
+            F.when(
+                (F.lower(F.col("document_type")) == "credit")
+                & ((billed_quantity <= 0) | (unit_price <= 0) | (line_amount <= 0)),
+                "INVALID_CREDIT_MAGNITUDE",
+            ).otherwise(F.col("quarantine_reason")),
         )
         quarantined.append(lines.filter(F.col("quarantine_reason").isNotNull()).withColumn("feed", F.lit("invoice_lines")))
         lines = lines.filter(F.col("quarantine_reason").isNull()).drop("quarantine_reason")
@@ -268,7 +282,7 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
             F.col("p.currency").alias("po_currency"),
         )
         delivery = delivery.withColumn("project_id", F.coalesce("receipt_project_id", "po_project_id"))
-        delivery = delivery.withColumn("delivery_state", F.when(F.col("receipt_delivery_id").isNull(), "PENDING_RECEIPT").when(F.col("acceptance_status") != "accepted", F.concat(F.lit("RECEIPT_"), F.upper(F.col("acceptance_status")))).when(F.col("matched_po_id").isNull(), "UNRESOLVED_PO").otherwise("ACCEPTED"))
+        delivery = delivery.withColumn("delivery_state", F.when(F.lower(F.col("status")) == "cancelled", "CANCELLED").when(F.col("receipt_delivery_id").isNull(), "PENDING_RECEIPT").when(F.col("acceptance_status") != "accepted", F.concat(F.lit("RECEIPT_"), F.upper(F.col("acceptance_status")))).when(F.col("matched_po_id").isNull(), "UNRESOLVED_PO").otherwise("ACCEPTED"))
         delivery = delivery.withColumn("accepted_net_quantity", F.when(F.col("delivery_state") == "ACCEPTED", F.col("net_metric_tonnes") * F.col("accepted_fraction").cast("decimal(9,6)")))
         _write_delta(delivery, store / "silver" / "delivery_status")
         daily = delivery.filter(F.col("delivery_state") == "ACCEPTED").withColumn("business_date", F.to_date(F.from_utc_timestamp(F.to_timestamp("received_at"), "America/Chicago"))).groupBy("project_id", "material_id", "business_date").agg(F.sum("accepted_net_quantity").cast("decimal(18,6)").alias("accepted_net_quantity"))
@@ -276,6 +290,49 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
     else:
         delivery = None
         products = []
+
+    freshness_schema = T.StructType([
+        T.StructField("source_feed", T.StringType(), False),
+        T.StructField("files_received_this_run", T.IntegerType(), False),
+        T.StructField("rows_received_this_run", T.LongType(), False),
+        T.StructField("latest_source_updated_at_utc", T.StringType(), True),
+        T.StructField("last_ingestion_at_utc", T.StringType(), True),
+        T.StructField("freshness_status", T.StringType(), False),
+        T.StructField("assessment_time_utc", T.StringType(), False),
+        T.StructField("synthetic", T.BooleanType(), False),
+    ])
+    freshness_rows = []
+    for feed in FEEDS:
+        feed_frames = ingest.get(feed, [])
+        file_count = len(feed_frames)
+        incoming = _union(feed_frames)
+        row_count = incoming.count() if incoming is not None else 0
+        latest_update = None
+        if incoming is not None and "source_updated_at" in incoming.columns:
+            latest_update = incoming.agg(F.max(F.try_to_timestamp("source_updated_at")).alias("latest")).first()["latest"]
+        if latest_update is not None and latest_update.tzinfo is None:
+            latest_update = latest_update.replace(tzinfo=UTC)
+        latest_update_text = latest_update.isoformat() if latest_update is not None else None
+        if file_count == 0:
+            freshness_status = "MISSING_EXPECTED_FILE"
+        elif latest_update is None:
+            freshness_status = "MISSING_OR_INVALID_SOURCE_UPDATED_AT"
+        elif (datetime.fromisoformat(started) - latest_update).total_seconds() > 72 * 3600:
+            freshness_status = "STALE_SOURCE_UPDATE_OVER_72H"
+        else:
+            freshness_status = "RECEIVED"
+        freshness_rows.append((
+            feed,
+            file_count,
+            row_count,
+            latest_update_text,
+            started if file_count else None,
+            freshness_status,
+            started,
+            True,
+        ))
+    source_freshness = spark.createDataFrame(freshness_rows, freshness_schema)
+    products.append(("source_freshness", source_freshness))
 
     exception_rows = None
     if lines is not None and allocations is not None and delivery is not None and po is not None:
@@ -317,6 +374,23 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
                 (F.col("unit_price_decimal") * F.lit(Decimal(1000)) / F.col("price_unit_kg"))
                 .cast("decimal(18,6)"),
             )
+            .withColumn("is_credit", F.lower(F.col("document_type")) == "credit")
+            .withColumn(
+                "signed_line_amount",
+                F.when(F.col("is_credit"), -F.col("line_amount_decimal"))
+                .otherwise(F.col("line_amount_decimal")),
+            )
+        )
+        original_lines = lines.filter(F.lower(F.col("document_type")) == "invoice").select(
+            F.concat_ws("/", "supplier_id", "invoice_id", "invoice_line_id").alias("original_line_key")
+        ).distinct()
+        line_basis = (
+            line_basis.withColumn(
+                "original_line_key",
+                F.regexp_replace(F.col("original_invoice_line_ref"), ":", "/"),
+            )
+            .join(original_lines.withColumn("original_line_exists", F.lit(True)), "original_line_key", "left")
+            .drop("original_line_key")
         )
         expected_amount = F.round(
             F.col("billed_quantity_decimal")
@@ -420,7 +494,7 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
             )
             .withColumn(
                 "unresolved_delivery",
-                F.when(F.col("delivery_state").isNull() | (F.col("delivery_state") != "ACCEPTED"), 1)
+                F.when(F.col("delivery_state").isNull() | (~F.col("delivery_state").isin("ACCEPTED", "CANCELLED")), 1)
                 .otherwise(0),
             )
         )
@@ -429,6 +503,7 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
         delivery_grain = alloc_detail.groupBy(*line_keys, "delivery_id").agg(
             F.max("accepted_net_quantity").alias("accepted_net_quantity"),
             F.max("unresolved_delivery").alias("unresolved_delivery"),
+            F.max(F.when(F.col("delivery_state") == "CANCELLED", 1).otherwise(0)).alias("cancelled_delivery"),
             F.max("price_mismatch").alias("price_mismatch"),
             F.max("supplier_mismatch").alias("supplier_mismatch"),
             F.max("material_mismatch").alias("material_mismatch"),
@@ -437,6 +512,7 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
         alloc_ref = delivery_grain.groupBy(*line_keys).agg(
             F.sum("accepted_net_quantity").alias("allocated_receipt_quantity"),
             F.max("unresolved_delivery").alias("unresolved_delivery"),
+            F.max("cancelled_delivery").alias("cancelled_delivery"),
             F.max("price_mismatch").alias("price_mismatch"),
             F.max("supplier_mismatch").alias("supplier_mismatch"),
             F.max("material_mismatch").alias("material_mismatch"),
@@ -465,9 +541,13 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
             )
             .withColumn(
                 "exception_reason",
-                F.when(F.col("allocated_quantity_metric_tonnes").isNull(), "MISSING_ALLOCATION")
-                .when(F.col("unresolved_delivery") == 1, "PENDING_SUPPORTING_DELIVERY")
+                F.when(F.col("is_credit") & (F.col("original_invoice_line_ref").isNull() | (F.trim(F.col("original_invoice_line_ref")) == "")), "CREDIT_MISSING_ORIGINAL_REFERENCE")
+                .when(F.col("is_credit") & F.col("original_line_exists").isNull(), "CREDIT_ORIGINAL_LINE_NOT_FOUND")
+                .when((~F.col("is_credit")) & F.col("allocated_quantity_metric_tonnes").isNull(), "MISSING_ALLOCATION")
+                .when((~F.col("is_credit")) & (F.col("unresolved_delivery") == 1), "PENDING_SUPPORTING_DELIVERY")
+                .when(F.col("cancelled_delivery") == 1, "CANCELLED_DELIVERY")
                 .when(F.col("currency").isNull(), "MISSING_INVOICE_HEADER")
+                .when(~F.lower(F.col("document_type")).isin("invoice", "credit"), "UNSUPPORTED_DOCUMENT_TYPE")
                 .when(F.col("currency") != "USD", "UNSUPPORTED_CURRENCY")
                 .when(F.col("billed_quantity_decimal").isNull() | F.col("unit_price_decimal").isNull() | F.col("line_amount_decimal").isNull(), "INVALID_INVOICE_AMOUNT_OR_QUANTITY")
                 .when(F.col("quantity_unit_kg").isNull() | F.col("price_unit_kg").isNull(), "UNSUPPORTED_INVOICE_UNIT")
@@ -477,12 +557,16 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
                 .when(F.col("po_line_mismatch") == 1, "PO_LINE_MISMATCH")
                 .when(F.col("amount_mismatch"), "LINE_AMOUNT_MISMATCH")
                 .when(F.col("price_mismatch") == 1, "UNIT_PRICE_MISMATCH")
-                .when(F.col("allocation_billed_difference") > tol, "ALLOCATION_QUANTITY_MISMATCH")
-                .when(F.col("quantity_difference") > tol, "QUANTITY_MISMATCH"),
+                .when((~F.col("is_credit")) & (F.col("allocation_billed_difference") > tol), "ALLOCATION_QUANTITY_MISMATCH")
+                .when((~F.col("is_credit")) & (F.col("quantity_difference") > tol), "QUANTITY_MISMATCH"),
             )
         )
         exception_rows = result.filter(F.col("exception_reason").isNotNull())
         products.append(("invoice_exceptions", exception_rows))
+        net_amounts = result.groupBy("company_id", "supplier_id", "currency").agg(
+            F.sum("signed_line_amount").cast("decimal(18,2)").alias("net_invoice_amount")
+        )
+        products.append(("invoice_net_amounts", net_amounts))
         _write_delta(result, store / "silver" / "invoice_reconciliation")
 
     quarantine = _union(quarantined)

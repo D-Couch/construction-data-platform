@@ -5,7 +5,7 @@ export SPARK_LOCAL_IP := 127.0.0.1
 export HOME := $(CURDIR)/.home
 export PYSPARK_SUBMIT_ARGS ?= --driver-memory 4g pyspark-shell
 
-.PHONY: install demo test lint
+.PHONY: install demo test lint recovery-demo
 install:
 	mkdir -p .home .cache/ivy .cache/spark-tmp
 	.venv/bin/pip install -e '.[dev]'
@@ -20,3 +20,6 @@ test:
 
 lint:
 	.venv/bin/ruff check src tests
+
+recovery-demo:
+	@.venv/bin/python scripts/demo-recovery.py

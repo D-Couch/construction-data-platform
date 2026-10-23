@@ -1,0 +1,13 @@
+{
+  "synthetic": true,
+  "scenario": "ticket correction with interruption and restart",
+  "initial_generation": "20261023T013727711814Z-7666e4df",
+  "initial_accepted_metric_tonnes": "10.000000",
+  "interrupted_status": "FAILED_INJECTED",
+  "interrupted_published": false,
+  "last_good_pointer_retained_after_interruption": true,
+  "recovered_generation": "20261023T013849063643Z-e1d09a04",
+  "recovered_accepted_metric_tonnes": "9.000000",
+  "recovered_invoice_exception_count": 1,
+  "final_pointer_matches_recovery": true
+}

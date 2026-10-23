@@ -71,6 +71,153 @@ def test_ticket_correction_replaces_quantity(tmp_path: Path, spark: SparkSession
     assert correction.exists()
 
 
+def test_ticket_cancellation_removes_delivery_and_flags_invoice(tmp_path: Path, spark: SparkSession) -> None:
+    root = tmp_path / "cancelled-ticket"
+    generate(root, "golden")
+    ticket_file = root / "landing" / "scale_tickets_batch_001.csv"
+    with ticket_file.open(newline="", encoding="utf-8") as stream:
+        tickets = list(csv.DictReader(stream))
+    tickets[0]["status"] = "cancelled"
+    tickets[0]["source_revision"] = "2"
+    tickets[0]["source_updated_at"] = "2026-10-21T08:00:00Z"
+    with ticket_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(tickets[0]))
+        writer.writeheader()
+        writer.writerows(tickets)
+
+    result = run_pipeline(root, spark)
+    assert result["daily_delivered"] == []
+    assert result["product_rows"]["invoice_exceptions"] == 1
+    assert result["invoice_exceptions"][0]["exception_reason"] == "CANCELLED_DELIVERY"
+
+
+def test_linked_credit_is_signed_once_and_does_not_need_delivery_allocation(tmp_path: Path, spark: SparkSession) -> None:
+    root = tmp_path / "linked-credit"
+    generate(root, "golden")
+    line_file = root / "landing" / "invoice_lines_batch_001.csv"
+    with line_file.open(newline="", encoding="utf-8") as stream:
+        lines = list(csv.DictReader(stream))
+    credit = dict(
+        lines[0],
+        source_record_id="SUP-1:INV-CREDIT-1:CR1",
+        invoice_id="INV-CREDIT-1",
+        invoice_line_id="CR1",
+        original_invoice_line_ref="SUP-1:INV-5001:L1",
+        document_type="credit",
+        billed_quantity="2.000",
+        line_amount="25.00",
+    )
+    with line_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(lines[0]))
+        writer.writeheader()
+        writer.writerows([*lines, credit])
+
+    invoice_file = root / "landing" / "invoices_batch_001.csv"
+    with invoice_file.open(newline="", encoding="utf-8") as stream:
+        invoices = list(csv.DictReader(stream))
+    invoices.append(dict(invoices[0], source_record_id="SUP-1:INV-CREDIT-1", invoice_id="INV-CREDIT-1", invoice_number="5001-C", normalized_invoice_number="5001-C"))
+    with invoice_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(invoices[0]))
+        writer.writeheader()
+        writer.writerows(invoices)
+
+    result = run_pipeline(root, spark)
+    assert result["product_rows"]["invoice_exceptions"] == 0
+    net = spark.read.format("delta").load(str(root / "tables" / "gold" / "generations" / result["generation"] / "invoice_net_amounts")).first()
+    assert str(net["net_invoice_amount"]) == "100.00"
+
+
+def test_unlinked_credit_is_exception(tmp_path: Path, spark: SparkSession) -> None:
+    root = tmp_path / "unlinked-credit"
+    generate(root, "golden")
+    line_file = root / "landing" / "invoice_lines_batch_001.csv"
+    with line_file.open(newline="", encoding="utf-8") as stream:
+        lines = list(csv.DictReader(stream))
+    credit = dict(lines[0], source_record_id="SUP-1:INV-CREDIT-1:CR1", invoice_id="INV-CREDIT-1", invoice_line_id="CR1", original_invoice_line_ref="", document_type="credit")
+    lines.append(credit)
+    with line_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(lines[0]))
+        writer.writeheader()
+        writer.writerows(lines)
+    invoice_file = root / "landing" / "invoices_batch_001.csv"
+    with invoice_file.open(newline="", encoding="utf-8") as stream:
+        invoices = list(csv.DictReader(stream))
+    invoices.append(dict(invoices[0], source_record_id="SUP-1:INV-CREDIT-1", invoice_id="INV-CREDIT-1", invoice_number="5001-C", normalized_invoice_number="5001-C"))
+    with invoice_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(invoices[0]))
+        writer.writeheader()
+        writer.writerows(invoices)
+
+    result = run_pipeline(root, spark)
+    assert result["product_rows"]["invoice_exceptions"] == 1
+    assert result["invoice_exceptions"][0]["exception_reason"] == "CREDIT_MISSING_ORIGINAL_REFERENCE"
+
+
+def test_out_of_order_revision_repair_and_additive_schema_field(tmp_path: Path, spark: SparkSession) -> None:
+    root = tmp_path / "revision-repair"
+    generate(root, "golden")
+    ticket_file = root / "landing" / "scale_tickets_batch_001.csv"
+    with ticket_file.open(newline="", encoding="utf-8") as stream:
+        tickets = list(csv.DictReader(stream))
+    old = dict(tickets[0], source_revision="1", gross_weight="500", tare_weight="700", extra_source_note="retained")
+    latest = dict(tickets[0], source_revision="2", source_updated_at="2026-10-21T08:00:00Z", gross_weight="11", tare_weight="2", extra_source_note="retained")
+    with ticket_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(old))
+        writer.writeheader()
+        writer.writerows([latest, old])
+
+    result = run_pipeline(root, spark)
+    assert str(result["daily_delivered"][0]["accepted_net_quantity"]) == "9.000000"
+    assert result["quarantine_rows"] == 0
+    history = spark.read.format("delta").load(str(root / "tables" / "silver" / "scale_tickets_history"))
+    assert history.count() == 2
+    assert "extra_source_note" in history.columns
+
+
+def test_unsupported_schema_version_is_quarantined_without_publication_loss(tmp_path: Path, spark: SparkSession) -> None:
+    root = tmp_path / "schema-version"
+    generate(root, "golden")
+    first = run_pipeline(root, spark)
+    ticket_file = root / "landing" / "scale_tickets_batch_001.csv"
+    with ticket_file.open(newline="", encoding="utf-8") as stream:
+        tickets = list(csv.DictReader(stream))
+    tickets[0]["schema_version"] = "2.0"
+    tickets[0]["source_revision"] = "2"
+    tickets[0]["source_updated_at"] = "2026-10-21T08:00:00Z"
+    with ticket_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(tickets[0]))
+        writer.writeheader()
+        writer.writerows(tickets)
+
+    result = run_pipeline(root, spark)
+    assert result["quarantine_rows"] == 1
+    assert str(result["daily_delivered"][0]["accepted_net_quantity"]) == "10.000000"
+    quarantine = spark.read.format("delta").load(str(root / "tables" / "silver" / "quarantine"))
+    assert quarantine.first()["quarantine_reason"] == "UNSUPPORTED_SCHEMA_VERSION"
+    assert result["generation"] != first["generation"]
+
+
+def test_missing_expected_feed_is_visible_in_published_freshness(tmp_path: Path, spark: SparkSession) -> None:
+    root = tmp_path / "missing-feed"
+    generate(root, "golden")
+    (root / "landing" / "invoices_batch_001.csv").unlink()
+    po_file = root / "landing" / "purchase_order_lines_batch_001.csv"
+    with po_file.open(newline="", encoding="utf-8") as stream:
+        purchase_orders = list(csv.DictReader(stream))
+    purchase_orders[0]["source_updated_at"] = "2026-10-15T12:00:00Z"
+    with po_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(purchase_orders[0]))
+        writer.writeheader()
+        writer.writerows(purchase_orders)
+    result = run_pipeline(root, spark)
+    freshness = spark.read.format("delta").load(str(root / "tables/gold/generations" / result["generation"] / "source_freshness"))
+    invoice_feed = freshness.filter("source_feed = 'invoices'").first()
+    po_feed = freshness.filter("source_feed = 'purchase_order_lines'").first()
+    assert invoice_feed["freshness_status"] == "MISSING_EXPECTED_FILE"
+    assert invoice_feed["files_received_this_run"] == 0
+    assert po_feed["freshness_status"] == "STALE_SOURCE_UPDATE_OVER_72H"
+
+
 def test_unknown_unit_is_quarantined_and_valid_rows_continue(tmp_path: Path, spark: SparkSession) -> None:
     root = tmp_path / "invalid"
     generate(root, "invalid-unit")
@@ -87,6 +234,24 @@ def test_unknown_unit_is_quarantined_and_valid_rows_continue(tmp_path: Path, spa
     assert result["quarantine_rows"] == 1
     quarantined = spark.read.format("delta").load(str(root / "tables" / "silver" / "quarantine"))
     assert quarantined.first()["quarantine_reason"] == "UNKNOWN_WEIGHT_UNIT"
+    repaired = dict(rows[0], source_revision="2", source_updated_at="2026-10-21T08:00:00Z", weight_unit="metric_tonne", gross_weight="12", tare_weight="2")
+    with feed.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows([rows[0], repaired])
+    invalid_file = root / "landing" / "scale_tickets_invalid.csv"
+    with invalid_file.open(newline="", encoding="utf-8") as stream:
+        invalid_rows = list(csv.DictReader(stream))
+    invalid_repair = dict(invalid_rows[0], source_revision="2", source_updated_at="2026-10-21T08:00:00Z", weight_unit="metric_tonne", gross_weight="2", tare_weight="0")
+    with invalid_file.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(invalid_rows[0]))
+        writer.writeheader()
+        writer.writerows([invalid_rows[0], invalid_repair])
+    reprocessed = run_pipeline(root, spark)
+    assert reprocessed["quarantine_rows"] == 0
+    assert str(reprocessed["daily_delivered"][0]["accepted_net_quantity"]) == "10.000000"
+    raw = spark.read.format("delta").load(str(root / "tables" / "bronze" / "scale_tickets"))
+    assert raw.count() >= 2
 
 
 def test_invoice_waits_for_late_purchase_order_then_resolves(tmp_path: Path, spark: SparkSession) -> None:

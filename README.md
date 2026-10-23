@@ -26,8 +26,12 @@ Other commands:
 .venv/bin/python -m construction_data_platform.cli run --root data/late-receipt
 mv data/late-receipt/deferred/site_receipts_late_arrival.csv data/late-receipt/landing/
 .venv/bin/python -m construction_data_platform.cli run --root data/late-receipt
-.venv/bin/pytest
-.venv/bin/ruff check src tests
+make test
+make lint
 ```
 
 See [docs/STATUS.md](docs/STATUS.md) for exact environment setup, executed checks, outcomes and limitations.
+
+## Reports and recovery
+
+The latest synthetic run report is available with `.venv/bin/python -m construction_data_platform.cli report --root data/demo`. Run `.venv/bin/python scripts/demo-recovery.py` (or `make recovery-demo`) to demonstrate a ticket correction, interruption between product writes, retention of the previous publication, and successful restart. See the [recovery runbook](docs/RUNBOOK.md) and [governance limits](docs/GOVERNANCE.md).

@@ -24,6 +24,11 @@ Codex must implement executable assertions and save sanitized run evidence, not 
 | Rebuild a historical date and rerun it | Same results as clean rebuild; unrelated dates and history preserved |
 | Lost checkpoint / replay old files | Recovery policy prevents duplicate business effects or refuses unsafe operation with a documented repair path |
 | Source misses scheduled arrival | Freshness/completeness breach visible; last-good data time shown |
+| Positive-magnitude credit references original invoice line | Net invoice amount is reduced exactly once; credit is excluded from delivery allocation quantity checks |
+| Credit has no valid original reference | Invoice-line exception is visible and source evidence is retained |
+| Ticket cancellation arrives as a revision | Current accepted quantity drops; an allocated invoice line is flagged; prior generation remains inspectable |
+| Additive CSV field and unsupported schema version | Additive field is retained; unsupported version is quarantined while prior supported record remains current |
+| Required source feed absent from a run | Published source completeness product reports `MISSING_EXPECTED_FILE` |
 
 Milestone 1 must execute clean flow, duplicate replay, ticket correction, late/missing-reference handling, unit/amount validation, and interrupted publication tests. Later milestones extend the full matrix.
 

@@ -16,11 +16,12 @@ These are configurable project assumptions, not Michels policies. Implement and 
 - Compare unit prices in normalized quantity units against the PO price effective for the delivery, unless a documented amended-price rule applies. Initial price tolerance is USD 0.01 per base unit. Version the rule and test revisions; never silently apply today's PO price to all history.
 - Validate line amount = billed quantity x unit price in its original pricing unit, rounded to cents using a documented rounding convention (initially ROUND_HALF_UP); amount tolerance USD 0.01. Use decimals, not binary floating-point money.
 - Duplicate file/event processing is suppressed; suspected duplicate commercial invoices with distinct IDs are flagged, never silently deleted. Use supplier plus normalized invoice number as the initial deterministic warning key; document false-positive limitations.
-- Credits must link to an original line. Model credits as signed adjustments exactly once with explicit document type and positive source magnitudes; do not double-negate. Do not treat a credit as a new material delivery. Implement in Milestone 3.
+- Credits must link to an original line. Model credits as signed adjustments exactly once with explicit document type and positive source magnitudes; do not double-negate. Do not treat a credit as a new material delivery. The local implementation uses the canonical supplier/invoice/line reference and reports credits as negative amounts in `invoice_net_amounts`.
 - Cancelling a ticket removes it from current accepted totals and opens affected reconciliation exceptions; historical publication evidence remains available.
 
 ## Completeness and publication
 - Initial daily demo reporting cutoff: 09:00 America/Chicago for the previous business date. This is a simulated target, not a service commitment. Generator manifests act as source delivery contracts, not correctness labels.
+- Local source freshness reports a missing expected feed and flags latest `source_updated_at` older than 72 hours. This is a versioned synthetic monitoring threshold, separate from event-time lateness and not a source SLA.
 - Check expected file/batch arrival and source event horizons separately. Latest ingestion time alone cannot establish business completeness.
 - Publish complete or explicitly provisional data with source-specific freshness/completeness flags. A failed validation must not replace the last-good generation with an apparently healthy report.
 - Separate hard failures (duplicate current keys, allocation multiplication, invalid publication) from row quarantine and warn-only freshness breaches. Every check has an owner role, severity, action, and evidence.
