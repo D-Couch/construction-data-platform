@@ -1,0 +1,106 @@
+{
+  "run_id": "b6e029cc-ebbc-4571-a669-cd35aa9679e4",
+  "generation": "20261023T020355770315Z-b6e029cc",
+  "status": "SUCCESS",
+  "published": true,
+  "synthetic": true,
+  "started_at_utc": "2026-10-23T02:03:07.388155+00:00",
+  "finished_at_utc": "2026-10-23T02:04:04.030213+00:00",
+  "source_rows_by_feed": {
+    "purchase_order_lines": 1,
+    "scale_tickets": 1,
+    "site_receipts": 1,
+    "invoices": 1,
+    "invoice_lines": 1,
+    "invoice_delivery_allocations": 1
+  },
+  "duplicate_business_envelopes_suppressed": 6,
+  "quarantine_rows": 0,
+  "product_rows": {
+    "daily_delivered_quantities": 1,
+    "source_freshness": 6,
+    "invoice_exceptions": 0,
+    "invoice_net_amounts": 1
+  },
+  "daily_delivered": [
+    {
+      "project_id": "P-001",
+      "material_id": "AGG-1",
+      "business_date": "2026-10-20",
+      "accepted_net_quantity": "10.000000"
+    }
+  ],
+  "invoice_exceptions": [],
+  "invoice_net_amounts": [
+    {
+      "company_id": "NORTHSTAR-CIVIL",
+      "supplier_id": "SUP-1",
+      "currency": "USD",
+      "net_invoice_amount": "125.00"
+    }
+  ],
+  "source_freshness": [
+    {
+      "source_feed": "purchase_order_lines",
+      "files_received_this_run": 1,
+      "rows_received_this_run": 1,
+      "latest_source_updated_at_utc": "2026-10-19T07:00:00+00:00",
+      "last_ingestion_at_utc": "2026-10-23T02:03:07.388155+00:00",
+      "freshness_status": "STALE_SOURCE_UPDATE_OVER_72H",
+      "assessment_time_utc": "2026-10-23T02:03:07.388155+00:00",
+      "synthetic": true
+    },
+    {
+      "source_feed": "scale_tickets",
+      "files_received_this_run": 1,
+      "rows_received_this_run": 1,
+      "latest_source_updated_at_utc": "2026-10-20T09:30:00+00:00",
+      "last_ingestion_at_utc": "2026-10-23T02:03:07.388155+00:00",
+      "freshness_status": "RECEIVED",
+      "assessment_time_utc": "2026-10-23T02:03:07.388155+00:00",
+      "synthetic": true
+    },
+    {
+      "source_feed": "site_receipts",
+      "files_received_this_run": 1,
+      "rows_received_this_run": 1,
+      "latest_source_updated_at_utc": "2026-10-20T09:30:00+00:00",
+      "last_ingestion_at_utc": "2026-10-23T02:03:07.388155+00:00",
+      "freshness_status": "RECEIVED",
+      "assessment_time_utc": "2026-10-23T02:03:07.388155+00:00",
+      "synthetic": true
+    },
+    {
+      "source_feed": "invoices",
+      "files_received_this_run": 1,
+      "rows_received_this_run": 1,
+      "latest_source_updated_at_utc": "2026-10-20T13:00:00+00:00",
+      "last_ingestion_at_utc": "2026-10-23T02:03:07.388155+00:00",
+      "freshness_status": "RECEIVED",
+      "assessment_time_utc": "2026-10-23T02:03:07.388155+00:00",
+      "synthetic": true
+    },
+    {
+      "source_feed": "invoice_lines",
+      "files_received_this_run": 1,
+      "rows_received_this_run": 1,
+      "latest_source_updated_at_utc": "2026-10-20T13:00:00+00:00",
+      "last_ingestion_at_utc": "2026-10-23T02:03:07.388155+00:00",
+      "freshness_status": "RECEIVED",
+      "assessment_time_utc": "2026-10-23T02:03:07.388155+00:00",
+      "synthetic": true
+    },
+    {
+      "source_feed": "invoice_delivery_allocations",
+      "files_received_this_run": 1,
+      "rows_received_this_run": 1,
+      "latest_source_updated_at_utc": "2026-10-20T13:00:00+00:00",
+      "last_ingestion_at_utc": "2026-10-23T02:03:07.388155+00:00",
+      "freshness_status": "RECEIVED",
+      "assessment_time_utc": "2026-10-23T02:03:07.388155+00:00",
+      "synthetic": true
+    }
+  ],
+  "publication_pointer": "/var/home/dylan/src/construction-data-platform/data/demo/tables/gold/current_generation.json",
+  "report_generated_at_utc": "2026-10-23T02:04:07.049115+00:00"
+}

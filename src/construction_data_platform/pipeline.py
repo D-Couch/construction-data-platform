@@ -597,7 +597,30 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
     temp = pointer_path.with_suffix(".tmp")
     temp.write_text(json.dumps(pointer, indent=2) + "\n", encoding="utf-8")
     temp.replace(pointer_path)
-    report = {"run_id": run_id, "generation": generation, "status": "SUCCESS", "published": True, "synthetic": True, "started_at_utc": started, "finished_at_utc": datetime.now(UTC).isoformat(), "source_rows_by_feed": counts, "duplicate_business_envelopes_suppressed": duplicates, "quarantine_rows": quarantine.count(), "product_rows": product_counts, "daily_delivered": [r.asDict(recursive=True) for r in spark.read.format("delta").load(str(staged / "daily_delivered_quantities")).collect()] if (staged / "daily_delivered_quantities").exists() else [], "invoice_exceptions": [r.asDict(recursive=True) for r in spark.read.format("delta").load(str(staged / "invoice_exceptions")).collect()], "publication_pointer": str(pointer_path)}
+    def product_rows(name: str) -> list[dict[str, object]]:
+        product_path = staged / name
+        if not product_path.exists():
+            return []
+        return [row.asDict(recursive=True) for row in _read_delta(spark, product_path).collect()]
+
+    report = {
+        "run_id": run_id,
+        "generation": generation,
+        "status": "SUCCESS",
+        "published": True,
+        "synthetic": True,
+        "started_at_utc": started,
+        "finished_at_utc": datetime.now(UTC).isoformat(),
+        "source_rows_by_feed": counts,
+        "duplicate_business_envelopes_suppressed": duplicates,
+        "quarantine_rows": quarantine.count(),
+        "product_rows": product_counts,
+        "daily_delivered": product_rows("daily_delivered_quantities"),
+        "invoice_exceptions": product_rows("invoice_exceptions"),
+        "invoice_net_amounts": product_rows("invoice_net_amounts"),
+        "source_freshness": product_rows("source_freshness"),
+        "publication_pointer": str(pointer_path),
+    }
     (root / "evidence" / "runs").mkdir(parents=True, exist_ok=True)
     (root / "evidence" / "runs" / f"{run_id}.json").write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
     if owns_spark:

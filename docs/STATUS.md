@@ -9,12 +9,15 @@ The latest local synthetic demo run is recorded in [`evidence/milestone1-local-d
 ## Checks actually run
 
 - `make test` — **18 passed in 976.03 seconds** using local PySpark 4.0.1 and Delta Lake 4.0.0.
-- `make demo` — completed successfully using real local Spark and Delta execution.
+- `make demo` — completed successfully again after Milestone 3 changes using real local Spark and Delta. The newest synthetic generation reports 10.000000 tonnes, USD 125.00 net invoice amount, zero invoice exceptions, and six source freshness rows; the PO update is flagged stale under the 72-hour demo threshold.
 - `.venv/bin/ruff check src tests scripts` — passed.
 - `.venv/bin/python -m compileall -q src tests scripts` — passed.
 - Parsed `databricks.yml` as YAML and asserted bounded concurrency, timeout, retry, serverless environment, scenario parameter wiring, dev scenario default, and entrypoint path — passed.
 - `.venv/bin/python -m construction_data_platform.databricks_entry --help` — passed; confirmed the workspace entrypoint exposes the configured scenario choices.
 - `.tools/databricks/databricks bundle validate -t dev` — configuration was read, then validation stopped because profile `construction-data-dev` has no configured authentication. No remote validation, deployment, or job run occurred. The installed CLI can emit the official bundle schema, but full validation is workspace-aware and requires authentication.
+- `make recovery-demo` — passed; interrupted correction retained the prior pointer, restart published 9 tonnes and one invoice exception. Sanitized output: `evidence/milestone3-local-recovery.json`.
+- `BENCHMARK_ARGS='--allocations-per-delivery 16' make benchmark` — passed output conservation checks and emitted `evidence/milestone4-allocation-benchmark.json` with row counts, bytes, configuration, and timings.
+- `.venv/bin/python -m construction_data_platform.cli report --root data/demo` plus `scripts/render-report.py` — passed; generated the actual synthetic snapshot at `reports/synthetic-dashboard.html` and saved its run report at `evidence/milestone4-dashboard-run.json`.
 - `git diff --check` — passed.
 
 The 18 Spark acceptance tests cover clean oracle reconciliation; same-name and renamed-file replay; interrupted publication and restart; corrections and out-of-order revisions; invalid-row quarantine and higher-revision repair; additive fields and unsupported schema versions; late PO/receipt arrival; missing/stale source status; ticket cancellation; linked and unlinked credits; amount/price discrepancies; unit normalization; PO effective pricing; allocation conservation; tolerance boundaries; and invalid timestamps/units.
@@ -55,6 +58,14 @@ The local pipeline now handles out-of-order revisions, additive CSV fields, unsu
 
 GitHub Actions now defines credential-free local Spark/Delta CI. The workflow is committed as configuration but has not yet run on GitHub. Governance roles and lineage limits are documented in `docs/GOVERNANCE.md`; no workspace principals, grants, native lineage, or Databricks integration tests are available here. The rebuild operates over retained files and recomputes full current state. A date-range-only backfill API is not implemented. Workspace verification remains outstanding.
 
+## Milestone 4 — portfolio artifacts and measured experiment; workspace delivery pending
+
+The project now includes a Mermaid architecture view, data dictionary, design decisions, a self-contained synthetic HTML report, and the executable recovery demonstration. The HTML report renders the latest saved successful local synthetic run; it is a reproducible snapshot, not a live dashboard.
+
+The local allocation benchmark uses 10,000 invoice-line keys and 160,000 synthetic allocation rows (4,160,040 input bytes), with local Spark 4.0.1 on `local[2]` and two shuffle partitions. Before/after results are equal at 10,000 output rows / 10,000 tonnes. Grouping before the delivery join reduces join input from 160,000 to 10,000 rows, while warmed medians are 190.40 ms before and 188.08 ms after across three alternating runs. That small difference is not a demonstrated performance gain, so the optimization is not retained in production code. Output size is 103,200 Parquet bytes. First-pass measurements are order-sensitive (before always runs first) and are not treated as cold-run comparisons. Evidence: `evidence/milestone4-allocation-benchmark.json`.
+
+No Databricks tuning, dashboard, workspace screenshot, cold-cluster comparison, or production-scale evidence is available. Milestone 4 local artifacts are prepared, but the measured optimization did not establish a runtime win and workspace-specific portfolio evidence remains pending.
+
 ## Remaining work
 
-Milestone 1 local acceptance is complete. Milestone 3 local failure scenarios and recovery documentation are implemented. The full local acceptance suite passed with 18 tests in 976.03 seconds; the quarantine-repair case also passed a focused rerun after its test fixture was corrected. Remote Databricks execution and governance tests remain unverified; date-range backfill API and persisted repair/run-ledger automation remain future work. Workspace URL/profile setup is the external blocker. Next: complete Milestone 4 measured tuning and portfolio artifacts, then record any workspace-only items that remain blocked. These synthetic local artifacts demonstrate correctness only; they make no live-source, lineage enforcement, production-performance, or enterprise-scale claim.
+Milestone 1 local acceptance is complete. Milestone 3 local failure scenarios and recovery documentation are implemented. The full local acceptance suite passed with 18 tests in 976.03 seconds; the quarantine-repair case also passed a focused rerun after its test fixture was corrected. Remote Databricks execution and governance tests remain unverified; date-range backfill API and persisted repair/run-ledger automation remain future work. Milestone 4 has local portfolio artifacts and a measured experiment, but no runtime gain was established; cold-cluster and workspace evidence are still missing. Workspace URL/profile setup is the external blocker. These synthetic local artifacts demonstrate correctness only; they make no live-source, lineage enforcement, production-performance, or enterprise-scale claim.

@@ -34,4 +34,6 @@ See [docs/STATUS.md](docs/STATUS.md) for exact environment setup, executed check
 
 ## Reports and recovery
 
-The latest synthetic run report is available with `.venv/bin/python -m construction_data_platform.cli report --root data/demo`. Run `.venv/bin/python scripts/demo-recovery.py` (or `make recovery-demo`) to demonstrate a ticket correction, interruption between product writes, retention of the previous publication, and successful restart. See the [recovery runbook](docs/RUNBOOK.md) and [governance limits](docs/GOVERNANCE.md).
+The latest synthetic run report is available with `.venv/bin/python -m construction_data_platform.cli report --root data/demo`. Export a self-contained snapshot from saved run evidence with `.venv/bin/python scripts/render-report.py`; see [`reports/synthetic-dashboard.html`](reports/synthetic-dashboard.html). Run `.venv/bin/python scripts/demo-recovery.py` (or `make recovery-demo`) to demonstrate a ticket correction, interruption between product writes, retention of the previous publication, and successful restart. See the [recovery runbook](docs/RUNBOOK.md), [governance limits](docs/GOVERNANCE.md), [architecture](docs/ARCHITECTURE.md), and [design decisions](docs/DESIGN_DECISIONS.md).
+
+Reproduce the local allocation experiment with `BENCHMARK_ARGS='--allocations-per-delivery 16' make benchmark`; its sanitized output is in [`evidence/milestone4-allocation-benchmark.json`](evidence/milestone4-allocation-benchmark.json). It records an input-reduction result but does not demonstrate a meaningful runtime gain.

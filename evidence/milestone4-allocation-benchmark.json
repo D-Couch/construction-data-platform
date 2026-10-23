@@ -1,0 +1,62 @@
+{
+  "synthetic": true,
+  "benchmark": "allocation join pre-aggregation",
+  "platform": "local Spark + Delta project environment; no Delta writes in timed section",
+  "spark_version": "4.0.1",
+  "spark_master": "local[2]",
+  "shuffle_partitions": "2",
+  "lines": 10000,
+  "allocations_per_delivery": 16,
+  "allocation_rows": 160000,
+  "join_rows_before_preaggregation": 160000,
+  "join_rows_after_preaggregation": 10000,
+  "join_input_reduction_factor": 16,
+  "allocation_input_bytes": 4160040,
+  "output_bytes_after_plan": 103200,
+  "repetitions": 3,
+  "outputs_equal": true,
+  "output": {
+    "rows": 10000,
+    "allocated_quantity": "10000.000000",
+    "accepted_quantity": "10000.0"
+  },
+  "first_execution_elapsed_ms": {
+    "before": 1392.61,
+    "after": 521.06
+  },
+  "first_execution_order": [
+    "before",
+    "after"
+  ],
+  "elapsed_ms": {
+    "before": [
+      292.18,
+      177.85,
+      190.4
+    ],
+    "after": [
+      225.63,
+      188.08,
+      143.88
+    ]
+  },
+  "warmed_repetition_order": [
+    [
+      "before",
+      "after"
+    ],
+    [
+      "after",
+      "before"
+    ],
+    [
+      "before",
+      "after"
+    ]
+  ],
+  "median_elapsed_ms": {
+    "before": 190.4,
+    "after": 188.08
+  },
+  "note": "Synthetic local microbenchmark; timings are resource proxies, not Databricks or production performance claims."
+}
