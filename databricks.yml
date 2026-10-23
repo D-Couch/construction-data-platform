@@ -8,6 +8,9 @@ variables:
   schema:
     description: Project-owned schema in the selected catalog
     default: construction_data_dev
+  demo_scenario:
+    description: Synthetic source scenario to generate for this bounded demo run
+    default: golden
 
 workspace:
   # Configure this profile with `databricks auth login --host <workspace-url> --profile construction-data-dev`.
@@ -38,6 +41,8 @@ resources:
             parameters:
               - --root
               - /Volumes/${var.catalog}/${var.schema}/construction_data
+              - --scenario
+              - ${var.demo_scenario}
           environment_key: default
       environments:
         - environment_key: default
@@ -51,7 +56,9 @@ targets:
     mode: development
     variables:
       schema: construction_data_dev
+      demo_scenario: golden
   prod:
     mode: production
     variables:
       schema: construction_data_prod
+      demo_scenario: golden

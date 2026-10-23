@@ -8,12 +8,13 @@ The latest local synthetic demo run is recorded in [`evidence/milestone1-local-d
 
 ## Checks actually run
 
-- `make test` — **12 passed in 652.34 seconds** using local PySpark 4.0.1 and Delta Lake 4.0.0.
+- `make test` — **12 passed in 644.37 seconds** using local PySpark 4.0.1 and Delta Lake 4.0.0.
 - `make demo` — completed successfully using real local Spark and Delta execution.
 - `.venv/bin/ruff check src tests` — passed.
 - `.venv/bin/python -m compileall -q src tests` — passed.
-- Parsed `databricks.yml` as YAML and asserted the bounded job concurrency — passed.
-- `.tools/databricks/databricks bundle validate -t dev` — configuration was read, then validation stopped because profile `construction-data-dev` has no configured authentication. No remote validation, deployment, or job run occurred.
+- Parsed `databricks.yml` as YAML and asserted bounded concurrency, timeout, retry, serverless environment, scenario parameter wiring, dev scenario default, and entrypoint path — passed.
+- `.venv/bin/python -m construction_data_platform.databricks_entry --help` — passed; confirmed the workspace entrypoint exposes the configured scenario choices.
+- `.tools/databricks/databricks bundle validate -t dev` — configuration was read, then validation stopped because profile `construction-data-dev` has no configured authentication. No remote validation, deployment, or job run occurred. The installed CLI can emit the official bundle schema, but full validation is workspace-aware and requires authentication.
 - `git diff --check` — passed.
 
 The 12 Spark acceptance tests cover clean oracle reconciliation; same-name and renamed-file duplicate replay; failed publication and retry; ticket correction with prior generation retained; invalid ticket quarantine; late PO and receipt arrivals; amount and price discrepancies; short-ton and invoice-kg unit normalization; future-effective PO price amendments; repeated/partial invoice allocations without delivery quantity multiplication; tolerance boundaries; and invalid timestamps/units.
@@ -34,7 +35,9 @@ The first Spark start may resolve the Delta Lake JVM package through the existin
 
 ## Databricks readiness and blocker
 
-The bundle declares a project-owned schema and managed volume and a bounded serverless Job (one concurrent run, one task retry, 3600-second timeout). Its serverless environment uses version 6 and the entrypoint uses the workspace-provided Spark session. The bundle format and YAML are locally parseable, but workspace compatibility is not verified. The local pipeline stores Delta by path and publishes through a local JSON pointer; Unity Catalog object registration, volume permissions, serverless execution behavior, and object-store pointer semantics have not been remotely tested.
+Milestone 2 local deployment preparation is in progress. The bundle declares a project-owned schema and managed volume and a bounded serverless Lakeflow Job (one concurrent run, one task retry, 3600-second timeout). Its serverless environment uses version 6 and its task takes an explicit synthetic scenario and Unity Catalog volume root. The entrypoint uses the workspace-provided Spark session. Current official documentation supports Declarative Automation Bundles resources and serverless Python script tasks with a required versioned task environment ([Bundles resources](https://docs.databricks.com/aws/en/dev-tools/bundles/resources), [bundle serverless examples](https://docs.databricks.com/aws/en/dev-tools/bundles/examples), [serverless dependencies](https://docs.databricks.com/aws/en/compute/serverless/dependencies)). The bundle YAML parses locally; workspace compatibility is not verified. The local pipeline stores Delta by path and publishes through a local JSON pointer; Unity Catalog object registration, volume permissions, serverless execution behavior, and object-store pointer semantics have not been remotely tested.
+
+Local task settings can be varied without editing the bundle, for example `--var="demo_scenario=ticket-correction"`; `late-po` and `late-receipt` are also generator scenarios. Scenario outputs remain explicitly synthetic. The full scenario must be run in an authenticated isolated dev workspace before this milestone can be marked complete.
 
 When a workspace is available, authenticate locally without sharing credentials in chat, then validate:
 
@@ -47,4 +50,4 @@ Review the isolated dev resources and workspace quotas before deploying/running.
 
 ## Remaining work
 
-Milestone 1 local acceptance is complete. Remote Databricks validation and an isolated dev run await workspace setup. Later production hardening includes durable Auto Loader/checkpoints, a persisted run ledger and repair workflow, schema evolution policy, freshness monitoring, and source-specific cancellation/credit semantics. This small synthetic fixture demonstrates correctness only; it makes no live-source, lineage, access-control, performance, or production-scale claim.
+Milestone 1 local acceptance is complete. For Milestone 2, authenticate the Databricks CLI profile, validate the bundle, review the isolated dev schema/volume and workspace quotas, deploy, run the synthetic golden and correction scenarios, and record sanitized run IDs/configuration/output evidence. Workspace URL/profile setup is the current external blocker; no credentials should be shared in chat. Later production hardening includes durable Auto Loader/checkpoints, a persisted run ledger and repair workflow, schema evolution policy, freshness monitoring, and source-specific cancellation/credit semantics. This small synthetic fixture demonstrates correctness only; it makes no live-source, lineage, access-control, performance, or production-scale claim.

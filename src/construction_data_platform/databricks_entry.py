@@ -18,8 +18,9 @@ from construction_data_platform.pipeline import run_pipeline
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--scenario", choices=("golden", "ticket-correction", "late-receipt", "invalid-ticket", "duplicate-replay"), default="golden")
     args = parser.parse_args()
-    generate(args.root, "golden")
+    generate(args.root, args.scenario)
     # Serverless Jobs use Spark Connect; the workspace-provided session is used
     # directly and the local Spark/Delta builder is reserved for development.
     result = run_pipeline(args.root, spark=SparkSession.builder.getOrCreate())

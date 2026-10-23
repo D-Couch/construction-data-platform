@@ -2,7 +2,7 @@
 
 A Databricks data platform that connects construction purchasing, deliveries, and invoices to produce reliable reporting and identify discrepancies.
 
-This portfolio project uses **synthetic operational data only**. It is not connected to Michels or any real contractor. Milestone 1 is an installable Python package with real local PySpark and Delta tables. Databricks execution is pending because no workspace authentication profile is configured in this environment.
+This portfolio project uses **synthetic operational data only**. It is not connected to Michels or any real contractor. Milestone 1 is an installable Python package with real local PySpark and Delta tables. The versioned Databricks bundle defines a bounded serverless Lakeflow Job; workspace validation and execution are pending because no workspace authentication is configured in this environment.
 
 ## Run the local demo
 
