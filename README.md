@@ -38,7 +38,7 @@ The latest synthetic run report is available with `.venv/bin/python -m construct
 
 ## Transfer example: SaaS usage and billing
 
-Run `make saas-demo` for a separate synthetic example that reconciles metered software usage against a customer invoice. It uses local Spark and Delta, reports missing or stale feeds and billing variances, and publishes through a generation pointer. Its source schema and business rules are independent of the construction example; it demonstrates the same integration and pipeline operations pattern in another industry. Data is fictional and outputs are not production scale.
+Run `make saas-demo` for a separate synthetic example that reconciles metered software usage against a customer invoice. It uses local Spark and Delta to demonstrate a stale feed and invoice mismatch, a renamed-file replay with duplicate suppression, a corrected event revision, and an interrupted publication that leaves the last-good generation active. The final correction restores agreement. Each command writes to a new timestamped folder beneath `data/saas-demo/`; its `evidence/walkthrough.json` records the steps and generations. Its source schema and business rules are independent of the construction example; it demonstrates the same integration and pipeline operations pattern in another industry. Data is fictional and outputs are not production scale.
 
 See the [recovery runbook](docs/RUNBOOK.md), [governance limits](docs/GOVERNANCE.md), [architecture](docs/ARCHITECTURE.md), and [design decisions](docs/DESIGN_DECISIONS.md).
 
