@@ -34,6 +34,12 @@ See [docs/STATUS.md](docs/STATUS.md) for exact environment setup, executed check
 
 ## Reports and recovery
 
-The latest synthetic run report is available with `.venv/bin/python -m construction_data_platform.cli report --root data/demo`. Export a self-contained snapshot from saved run evidence with `.venv/bin/python scripts/render-report.py`; see [`reports/synthetic-dashboard.html`](reports/synthetic-dashboard.html). Run `.venv/bin/python scripts/demo-recovery.py` (or `make recovery-demo`) to demonstrate a ticket correction, interruption between product writes, retention of the previous publication, and successful restart. See the [recovery runbook](docs/RUNBOOK.md), [governance limits](docs/GOVERNANCE.md), [architecture](docs/ARCHITECTURE.md), and [design decisions](docs/DESIGN_DECISIONS.md).
+The latest synthetic run report is available with `.venv/bin/python -m construction_data_platform.cli report --root data/demo`. Export a self-contained snapshot of the current published run with `.venv/bin/python scripts/render-report.py --root data/demo`; the report leads with run outcome, the consumer publication pointer, arrived/missing/stale sources, and changes from the prior successful generation. See [`reports/synthetic-dashboard.html`](reports/synthetic-dashboard.html). Run `.venv/bin/python scripts/demo-recovery.py` (or `make recovery-demo`) to demonstrate a ticket correction, interruption between product writes, retention of the previous publication, and successful restart.
+
+## Transfer example: SaaS usage and billing
+
+Run `make saas-demo` for a separate synthetic example that reconciles metered software usage against a customer invoice. It uses local Spark and Delta, reports missing or stale feeds and billing variances, and publishes through a generation pointer. Its source schema and business rules are independent of the construction example; it demonstrates the same integration and pipeline operations pattern in another industry. Data is fictional and outputs are not production scale.
+
+See the [recovery runbook](docs/RUNBOOK.md), [governance limits](docs/GOVERNANCE.md), [architecture](docs/ARCHITECTURE.md), and [design decisions](docs/DESIGN_DECISIONS.md).
 
 Reproduce the local allocation experiment with `BENCHMARK_ARGS='--allocations-per-delivery 16' make benchmark`; its sanitized output is in [`evidence/milestone4-allocation-benchmark.json`](evidence/milestone4-allocation-benchmark.json). It records an input-reduction result but does not demonstrate a meaningful runtime gain.

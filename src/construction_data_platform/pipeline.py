@@ -621,6 +621,27 @@ def run_pipeline(root: Path, spark: SparkSession | None = None, fail_after_produ
         "source_freshness": product_rows("source_freshness"),
         "publication_pointer": str(pointer_path),
     }
+    # Keep a small, explicit comparison to the prior successful run for operator context.
+    prior_reports = sorted(
+        (root / "evidence" / "runs").glob("*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    prior = next((json.loads(path.read_text(encoding="utf-8")) for path in prior_reports
+                  if path.name != f"{run_id}.json" and json.loads(path.read_text(encoding="utf-8")).get("published") is True), None)
+    if prior:
+        report["changes_from_previous_generation"] = {
+            "previous_generation": prior.get("generation"),
+            "accepted_net_quantity": {
+                "previous": str(sum((Decimal(str(row["accepted_net_quantity"])) for row in prior.get("daily_delivered", [])), Decimal(0))),
+                "current": str(sum((Decimal(str(row["accepted_net_quantity"])) for row in report["daily_delivered"]), Decimal(0))),
+            },
+            "invoice_exception_count": {
+                "previous": len(prior.get("invoice_exceptions", [])),
+                "current": len(report["invoice_exceptions"]),
+            },
+            "quarantine_rows": {"previous": prior.get("quarantine_rows", 0), "current": report["quarantine_rows"]},
+        }
     (root / "evidence" / "runs").mkdir(parents=True, exist_ok=True)
     (root / "evidence" / "runs" / f"{run_id}.json").write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
     if owns_spark:

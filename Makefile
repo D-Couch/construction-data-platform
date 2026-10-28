@@ -5,7 +5,7 @@ export SPARK_LOCAL_IP := 127.0.0.1
 export HOME := $(CURDIR)/.home
 export PYSPARK_SUBMIT_ARGS ?= --driver-memory 4g pyspark-shell
 
-.PHONY: install demo test lint recovery-demo benchmark
+.PHONY: install demo saas-demo test lint recovery-demo benchmark
 install:
 	mkdir -p .home .cache/ivy .cache/spark-tmp
 	.venv/bin/pip install -e '.[dev]'
@@ -13,6 +13,10 @@ install:
 demo:
 	mkdir -p .home .cache/ivy .cache/spark-tmp
 	.venv/bin/python -m construction_data_platform.cli demo --root data/demo --scenario golden
+
+saas-demo:
+	mkdir -p .home .cache/ivy .cache/spark-tmp
+	.venv/bin/python examples/saas_usage_billing/demo.py --root data/saas-demo
 
 test:
 	mkdir -p .home .cache/ivy .cache/spark-tmp
